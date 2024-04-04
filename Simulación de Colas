@@ -1,0 +1,236 @@
+#Practica 2 
+#Padron Hernandez Jose Domingo 320055285
+#para 30 minutos 
+import numpy as np
+#revisamos y definimos de nuevo la clase Cola con el método faltante
+class Persona:
+    def __init__(self, tiempo_llegada, tipo_paciente):
+        self.tiempo_llegada = tiempo_llegada
+        self.tipo_paciente = tipo_paciente
+
+class Cola:
+    def __init__(self):
+        self.personas = []
+
+    def agregar_persona(self, persona):
+        self.personas.append(persona)
+
+    def atender_persona(self):
+        return self.personas.pop(0) if self.personas else None
+
+    def esta_vacia(self):
+        return len(self.personas) == 0
+
+#reinstalamos la clase Simulacion con la corrección necesaria
+
+class Simulacion:
+    def __init__(self, tiempo_atencion, cantidad_personas):
+        self.reloj = 0
+        self.cola = Cola()
+        self.tiempo_atencion = tiempo_atencion
+        self.cantidad_personas = cantidad_personas
+        self.tiempos_espera = []
+        self.tiempos_espera_urgencia = []
+        self.tiempos_espera_rutinario = []
+        self.tiempo_proxima_disponibilidad = 0
+
+    def generar_tiempo_llegada(self):
+        return np.random.uniform(0.5, 50)
+
+    def generar_tipo_paciente(self):
+        return 'urgencia' if np.random.rand() < 0.2 else 'rutinario'
+
+    def ejecutar_simulacion(self):
+        for _ in range(self.cantidad_personas):
+            tiempo_llegada = self.generar_tiempo_llegada()
+            tipo_paciente = self.generar_tipo_paciente()
+            self.reloj += tiempo_llegada
+            persona = Persona(self.reloj, tipo_paciente)
+            self.cola.agregar_persona(persona)
+
+            #atendemos a las personas si es su turno y el consultorio está disponible
+            while not self.cola.esta_vacia() and self.reloj >= self.tiempo_proxima_disponibilidad:
+                persona_atendida = self.cola.atender_persona()
+                tiempo_espera = max(self.reloj - persona_atendida.tiempo_llegada, 0)
+                self.tiempos_espera.append(tiempo_espera)
+
+                if persona_atendida.tipo_paciente == 'urgencia':
+                    self.tiempos_espera_urgencia.append(tiempo_espera)
+                else:
+                    self.tiempos_espera_rutinario.append(tiempo_espera)
+
+                #actualizamos la próxima disponibilidad del consultorio
+                self.tiempo_proxima_disponibilidad = self.reloj + self.tiempo_atencion
+
+        #calculamos estadísticas finales
+        tiempo_promedio_espera = np.mean(self.tiempos_espera) if self.tiempos_espera else 0
+        tiempo_promedio_espera_urgencia = np.mean(self.tiempos_espera_urgencia) if self.tiempos_espera_urgencia else 0
+        tiempo_promedio_espera_rutinario = np.mean(self.tiempos_espera_rutinario) if self.tiempos_espera_rutinario else 0
+
+        return {
+            'tiempo_promedio_espera': tiempo_promedio_espera,
+            'tiempo_promedio_espera_urgencia': tiempo_promedio_espera_urgencia,
+            'tiempo_promedio_espera_rutinario': tiempo_promedio_espera_rutinario
+        }
+
+#ahora volvemos a ejecutar la simulación para ver si los tiempos de espera son razonables
+simulacion_ajustada = Simulacion(tiempo_atencion=30, cantidad_personas=50000)
+resultados_simulacion_ajustada = simulacion_ajustada.ejecutar_simulacion()
+resultados_simulacion_ajustada
+
+# pregunta2 para 20 minutos 
+#funcion para ejecutar múltiples simulaciones y recopilar estadísticas
+def ejecutar_simulaciones_multiples(tiempo_atencion, cantidad_simulaciones, cantidad_personas):
+    resultados = {
+        'tiempo_promedio_espera': [],
+        'tiempo_promedio_espera_urgencia': [],
+        'tiempo_promedio_espera_rutinario': []
+    }
+
+    for _ in range(cantidad_simulaciones):
+        simulacion = Simulacion(tiempo_atencion, cantidad_personas)
+        resultado = simulacion.ejecutar_simulacion()
+        resultados['tiempo_promedio_espera'].append(resultado['tiempo_promedio_espera'])
+        resultados['tiempo_promedio_espera_urgencia'].append(resultado['tiempo_promedio_espera_urgencia'])
+        resultados['tiempo_promedio_espera_rutinario'].append(resultado['tiempo_promedio_espera_rutinario'])
+
+    #calculamos las estats finales
+    estadisticas_finales = {clave: np.mean(valor) for clave, valor in resultados.items()}
+    return estadisticas_finales
+
+#ejecutamos 20 simulaciones con el tiempo de atención reducido a 20 minutos
+resultados_con_tiempo_reducido = ejecutar_simulaciones_multiples(tiempo_atencion=20, cantidad_simulaciones=20, cantidad_personas=50000)
+resultados_con_tiempo_reducido
+
+#Pregunta 3
+#implementamos la optimización en la clase Cola para manejar dos listas separadas: una para urgencias y otra para rutinarios
+class ColaConPrioridadOptimizada:
+    def __init__(self):
+        self.urgencias = []
+        self.rutinarios = []
+
+    def agregar_persona(self, persona):
+        if persona.tipo_paciente == 'urgencia':
+            self.urgencias.append(persona)
+        else:
+            self.rutinarios.append(persona)
+
+    def atender_persona(self):
+        if self.urgencias:
+            return self.urgencias.pop(0)
+        elif self.rutinarios:
+            return self.rutinarios.pop(0)
+        else:
+            return
+
+    def esta_vacia(self):
+        return len(self.urgencias) == 0 and len(self.rutinarios) == 0
+
+#actualizamos la clase Simulacion para usar la nueva Cola con prioridad optimizada
+class SimulacionConPrioridadOptimizada(Simulacion):
+    def __init__(self, tiempo_atencion, cantidad_personas):
+        super().__init__(tiempo_atencion, cantidad_personas)
+        self.cola = ColaConPrioridadOptimizada()  #Usamos la cola optimizada con manejo de prioridad
+
+#funcion ajustada para ejecutar simulaciones con la clase de simulación que maneja la prioridad optimizada
+def ejecutar_simulaciones_multiples_con_prioridad_optimizada(tiempo_atencion, cantidad_simulaciones, cantidad_personas):
+    resultados = {
+        'tiempo_promedio_espera': [],
+        'tiempo_promedio_espera_urgencia': [],
+        'tiempo_promedio_espera_rutinario': []
+    }
+
+    for _ in range(cantidad_simulaciones):
+        simulacion = SimulacionConPrioridadOptimizada(tiempo_atencion, cantidad_personas)
+        resultado = simulacion.ejecutar_simulacion()
+        resultados['tiempo_promedio_espera'].append(resultado['tiempo_promedio_espera'])
+        resultados['tiempo_promedio_espera_urgencia'].append(resultado['tiempo_promedio_espera_urgencia'])
+        resultados['tiempo_promedio_espera_rutinario'].append(resultado['tiempo_promedio_espera_rutinario'])
+
+    estadisticas_finales = {clave: np.mean(valor) for clave, valor in resultados.items()}
+    return estadisticas_finales
+
+#reducimos la cantidad de personas para las pruebas a un número más manejable para asegurar la ejecución
+resultados_con_prioridad_optimizada = ejecutar_simulaciones_multiples_con_prioridad_optimizada(
+    tiempo_atencion=20,
+    cantidad_simulaciones=20,
+    cantidad_personas=10000  #reducimos para pruebas
+)
+resultados_con_prioridad_optimizada
+
+#Propuesta de Solucion 
+import numpy as np
+
+class Persona:
+    #inicia una nueva instancia de Persona con tiempo de arribo y tipo
+    def __init__(self, tiempo_arribo, tipo):
+        self.tiempo_arribo = tiempo_arribo  #guarda el tiempo de arribo de la persona
+        self.tipo = tipo  #guarda el tipo de la persona, puede ser urgencia o rutinario
+
+class Cola:
+    #inicia una cola vacia
+    def __init__(self):
+        self.personas = []  #lista vacia para guardar las personas en la cola
+
+    #agrega una persona a la cola
+    def agregar_persona(self, persona):
+        self.personas.append(persona)  #agrega una persona al final de la cola
+
+    #atiende a la primera persona de la cola y la remueve
+    def atender_persona(self):
+        return self.personas.pop(0) if self.personas else None  #remueve y devuelve la primera persona si hay alguna
+
+class Simulacion:
+    #inicia una nueva simulacion con tiempo actual, tiempo de atencion,
+    #una cola vacia y listas para guardar tiempos de espera
+    def __init__(self, tiempo_atencion):
+        self.tiempo_actual = 0  #establece el tiempo actual de la simulacion a 0
+        self.tiempo_atencion = tiempo_atencion  #establece el tiempo de atencion por persona
+        self.cola = Cola()  #crea una nueva cola vacia
+        self.tiempos_espera_urgencia = []  #lista para guardar los tiempos de espera de urgencia
+        self.tiempos_espera_rutinario = []  #lista para guardar los tiempos de espera rutinarios
+
+    #simula la llegada de una persona a la cola
+    def simular_arribo(self):
+        tiempo_arribo = np.random.uniform(0.5, 51)  #genera un tiempo de arribo aleatorio entre 0.5 y 50
+        tipo = 'urgencia' if np.random.uniform(0, 1) < 0.2 else 'rutinario'  #asigna un tipo basado en probabilidad
+        persona = Persona(self.tiempo_actual + tiempo_arribo, tipo)  #crea una nueva persona
+        self.cola.agregar_persona(persona)  #agrega la persona a la cola
+
+    #simula la atencion de personas en la cola
+    def simular_atencion(self):
+        #Atender primero a las personas de urgencia si las hay
+        for persona in list(self.cola.personas):  #Hacemos una copia para poder modificar la cola mientras iteramos
+            if self.tiempo_actual >= persona.tiempo_arribo + self.tiempo_atencion:
+                if persona.tipo == 'urgencia':
+                    #Atendemos al paciente de urgencia
+                    self.tiempos_espera_urgencia.append(self.tiempo_actual - persona.tiempo_arribo)
+                    self.cola.personas.remove(persona)
+                    break  #Atendemos a una sola persona por iteración de tiempo
+        else:
+            #Si no hay pacientes de urgencia, atendemos al primer paciente rutinario
+            if self.cola.personas:  #Verificamos que la cola no esté vacía
+                primer_persona = self.cola.personas[0]
+                if self.tiempo_actual >= primer_persona.tiempo_arribo + self.tiempo_atencion:
+                    self.tiempos_espera_rutinario.append(self.tiempo_actual - primer_persona.tiempo_arribo)
+                    self.cola.personas.remove(primer_persona)
+
+    #ejecuta la simulacion hasta alcanzar el numero de personas especificado
+    def ejecutar_simulacion(self, num_personas):
+        while len(self.tiempos_espera_urgencia) + len(self.tiempos_espera_rutinario) < num_personas:
+            if np.random.uniform(0, 1) < (1/50.0):  #decide aleatoriamente si llega una nueva persona
+                self.simular_arribo()
+            self.simular_atencion()
+            self.tiempo_actual += 1  #incrementa el tiempo actual de la simulacion
+
+        promedio_urgencia = np.mean(self.tiempos_espera_urgencia)  #calcula el promedio de espera para urgencias
+        promedio_rutinario = np.mean(self.tiempos_espera_rutinario)  #calcula el promedio de espera para rutinarios
+        return promedio_urgencia, promedio_rutinario
+
+num_personas_por_simulacion = 50000
+simulacion = Simulacion(tiempo_atencion=30)  #crea una simulacion con 30 minutos de tiempo de atencion por persona
+promedio_urgencia, promedio_rutinario = simulacion.ejecutar_simulacion(num_personas_por_simulacion)  #ejecuta la simulacion
+
+#imprime los resultados de la simulacion
+print(f"Tiempo promedio de espera para pacientes de urgencia: {promedio_urgencia:.2f} minutos.")
+print(f"Tiempo promedio de espera para pacientes rutinarios: {promedio_rutinario:.2f} minutos.")
